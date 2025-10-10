@@ -1,168 +1,142 @@
 <!DOCTYPE html>
 <html lang="de">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Profil - Knödelbrot</title>
-  <link href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Pacifico&display=swap"
-    rel="stylesheet">
+  <title>Profil – Knödelbrot</title>
   <style>
     body {
-      font-family: "DynaPuff", system-ui;
-      background-color: #111;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    .login-box {
-      background-color: black;
-      border-radius: 90px;
-      padding: 40px;
-      width: 350px;
+      font-family: monospace;
+      background: #111;
+      color: #0f0;
+      font-size: 1.2em;
       text-align: center;
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
     }
 
-    h1 {
-      font-family: "Pacifico", cursive;
-      font-size: 46px;
-      color: whitesmoke;
-      margin-bottom: 30px;
-    }
-
-    input[type="text"] {
-      width: 80%;
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 90px;
-      border: none;
-      background-color: #222;
-      color: whitesmoke;
-      font-family: "DynaPuff", system-ui;
-      font-size: 18px;
-      outline: none;
-      transition: background 0.3s;
-    }
-
-    input[type="text"]:focus {
-      background-color: #333;
-    }
-
-    button {
-      background-color: black;
-      color: white;
-      border: none;
-      border-radius: 90px;
-      padding: 15px 40px;
-      font-size: 20px;
-      cursor: pointer;
-      transition: 0.4s;
-      font-family: "DynaPuff", system-ui;
-      margin-top: 20px;
+    input, button {
+      background: #222;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 8px;
+      margin: 6px;
+      border-radius: 8px;
     }
 
     button:hover {
-      background-color: rgb(125, 125, 125);
-      color: black;
+      background: #0f0;
+      color: #111;
+      cursor: pointer;
     }
 
-    #error {
-      color: red;
-      margin-top: 15px;
-    }
-
-    #message {
+    #output {
+      margin-top: 20px;
       color: #0f0;
-      margin-top: 15px;
     }
   </style>
 </head>
-
 <body>
-  <div class="login-box">
-    <h1>Profil</h1>
-    <p id="welcome"></p>
+  <h1>Knödelbrot Profil</h1>
+  <div id="output">Lade Benutzerdaten...</div>
 
+  <div id="bonus-section" style="display:none;">
+    <p><b>Aktueller Bonus:</b> <span id="bonusText"></span></p>
     <input type="text" id="bonusInput" placeholder="Bonuscode eingeben">
-    <button id="setBonus">Bonuscode speichern</button>
-    <div id="message"></div>
-    <div id="error"></div>
+    <button id="applyBonus">Bonus anwenden</button>
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
-    import { getBonusType } from "./bonuscodes.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
+    console.log("[DEBUG] Starte Profilseite...");
+
+    // --- Firebase Config ---
     const firebaseConfig = {
-      apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
-      authDomain: "knödelbrot-1d1de.firebaseapp.com",
-      projectId: "knödelbrot-1d1de",
-      storageBucket: "knödelbrot-1d1de.firebasestorage.app",
-      messagingSenderId: "906476242509",
-      appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
+      apiKey: "AIzaSyDjMSN-K6tV1O4C43XvJwEjsO3PfvlByq4",
+      authDomain: "knoedelbrot.firebaseapp.com",
+      projectId: "knoedelbrot",
+      storageBucket: "knoedelbrot.appspot.com",
+      messagingSenderId: "184240033606",
+      appId: "1:184240033606:web:7b0a3efb1dfe1c0013bcf2"
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
+    console.log("[DEBUG] Firebase initialisiert.");
 
-    const welcome = document.getElementById("welcome");
+    // --- Cookies lesen ---
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    const userEmail = getCookie("userEmail");
+    console.log("[DEBUG] Cookie userEmail:", userEmail);
+
+    const output = document.getElementById("output");
+    const bonusText = document.getElementById("bonusText");
+    const bonusSection = document.getElementById("bonus-section");
     const bonusInput = document.getElementById("bonusInput");
-    const setBonusBtn = document.getElementById("setBonus");
-    const message = document.getElementById("message");
-    const error = document.getElementById("error");
+    const applyBonus = document.getElementById("applyBonus");
 
-    let currentUser = null;
-    let username = "";
+    if (!userEmail) {
+      output.textContent = "Du bist nicht angemeldet.";
+      console.warn("[WARN] Kein userEmail-Cookie gefunden!");
+    } else {
+      const userRef = doc(db, "users", userEmail);
 
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        currentUser = user;
-        username = user.email.split("@")[0];
-        welcome.textContent = `Willkommen, ${username}!`;
-
-        // Bonus aus Firestore laden
-        const userDoc = await getDoc(doc(db, "users", username));
-        if (userDoc.exists()) {
-          bonusInput.value = userDoc.data().bonus || "";
+      async function loadUser() {
+        try {
+          console.log("[DEBUG] Lade Benutzer aus Firestore:", userEmail);
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            console.log("[DEBUG] Firestore-Daten:", data);
+            output.textContent = `Hallo ${data.username || userEmail}!`;
+            bonusText.textContent = data.bonus || "Kein Bonuscode vorhanden";
+          } else {
+            console.warn("[WARN] Kein Firestore-Dokument für", userEmail);
+            output.textContent = "Neues Profil wird erstellt...";
+            await setDoc(userRef, { username: userEmail, bonus: "none" });
+            bonusText.textContent = "none";
+          }
+          bonusSection.style.display = "block";
+        } catch (e) {
+          console.error("[ERROR] Fehler beim Laden des Profils:", e);
+          output.textContent = "Fehler beim Laden des Profils. Siehe Konsole.";
         }
-      } else {
-        welcome.textContent = "Nicht angemeldet!";
-      }
-    });
-
-    setBonusBtn.addEventListener("click", async () => {
-      error.textContent = "";
-      message.textContent = "";
-
-      const inputCode = bonusInput.value.trim();
-      const bonusType = getBonusType(inputCode);
-
-      if (!currentUser) {
-        error.textContent = "Du musst eingeloggt sein!";
-        return;
       }
 
-      if (bonusType === "none") {
-        error.textContent = "Ungültiger oder abgelaufener Bonuscode!";
-        return;
-      }
+      loadUser();
 
-      try {
-        await updateDoc(doc(db, "users", username), { bonus: bonusType });
-        message.textContent = `Bonuscode erfolgreich gesetzt: ${bonusType}`;
-      } catch (err) {
-        console.error(err);
-        error.textContent = "Fehler beim Speichern des Bonuscodes.";
-      }
-    });
+      applyBonus.addEventListener("click", async () => {
+        const code = bonusInput.value.trim();
+        if (!code) return alert("Bitte Bonuscode eingeben!");
+        console.log("[DEBUG] Eingabe Bonuscode:", code);
+
+        const gültigeCodes = {
+          "KNOEDEL100": "Superbonus",
+          "BROTPREMIUM": "Premiumbonus",
+          "TESTCODE": "Testbonus"
+        };
+
+        if (gültigeCodes[code]) {
+          try {
+            await updateDoc(userRef, { bonus: gültigeCodes[code] });
+            bonusText.textContent = gültigeCodes[code];
+            alert(`Bonuscode erfolgreich aktiviert: ${gültigeCodes[code]}`);
+            console.log("[DEBUG] Bonus erfolgreich in Firestore gespeichert!");
+          } catch (e) {
+            console.error("[ERROR] Konnte Bonus nicht speichern:", e);
+            alert("Fehler beim Speichern des Bonuscodes!");
+          }
+        } else {
+          alert("Ungültiger Bonuscode!");
+          console.warn("[WARN] Ungültiger Code:", code);
+        }
+      });
+    }
   </script>
 </body>
-
 </html>
