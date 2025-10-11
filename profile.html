@@ -1,142 +1,57 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Profil – Knödelbrot</title>
-  <style>
-    body {
-      font-family: monospace;
-      background: #111;
-      color: #0f0;
-      font-size: 1.2em;
-      text-align: center;
-    }
+    <meta charset="UTF-8">
+    <title>Profil</title>
+    <script type="module">
+        import { bonusCodes } from './bonuscodes.js';
 
-    input, button {
-      background: #222;
-      color: #0f0;
-      border: 1px solid #0f0;
-      padding: 8px;
-      margin: 6px;
-      border-radius: 8px;
-    }
-
-    button:hover {
-      background: #0f0;
-      color: #111;
-      cursor: pointer;
-    }
-
-    #output {
-      margin-top: 20px;
-      color: #0f0;
-    }
-  </style>
-</head>
-<body>
-  <h1>Knödelbrot Profil</h1>
-  <div id="output">Lade Benutzerdaten...</div>
-
-  <div id="bonus-section" style="display:none;">
-    <p><b>Aktueller Bonus:</b> <span id="bonusText"></span></p>
-    <input type="text" id="bonusInput" placeholder="Bonuscode eingeben">
-    <button id="applyBonus">Bonus anwenden</button>
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-
-    console.log("[DEBUG] Starte Profilseite...");
-
-    // --- Firebase Config ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyDjMSN-K6tV1O4C43XvJwEjsO3PfvlByq4",
-      authDomain: "knoedelbrot.firebaseapp.com",
-      projectId: "knoedelbrot",
-      storageBucket: "knoedelbrot.appspot.com",
-      messagingSenderId: "184240033606",
-      appId: "1:184240033606:web:7b0a3efb1dfe1c0013bcf2"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    console.log("[DEBUG] Firebase initialisiert.");
-
-    // --- Cookies lesen ---
-    function getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
-    }
-
-    const userEmail = getCookie("userEmail");
-    console.log("[DEBUG] Cookie userEmail:", userEmail);
-
-    const output = document.getElementById("output");
-    const bonusText = document.getElementById("bonusText");
-    const bonusSection = document.getElementById("bonus-section");
-    const bonusInput = document.getElementById("bonusInput");
-    const applyBonus = document.getElementById("applyBonus");
-
-    if (!userEmail) {
-      output.textContent = "Du bist nicht angemeldet.";
-      console.warn("[WARN] Kein userEmail-Cookie gefunden!");
-    } else {
-      const userRef = doc(db, "users", userEmail);
-
-      async function loadUser() {
-        try {
-          console.log("[DEBUG] Lade Benutzer aus Firestore:", userEmail);
-          const snap = await getDoc(userRef);
-          if (snap.exists()) {
-            const data = snap.data();
-            console.log("[DEBUG] Firestore-Daten:", data);
-            output.textContent = `Hallo ${data.username || userEmail}!`;
-            bonusText.textContent = data.bonus || "Kein Bonuscode vorhanden";
-          } else {
-            console.warn("[WARN] Kein Firestore-Dokument für", userEmail);
-            output.textContent = "Neues Profil wird erstellt...";
-            await setDoc(userRef, { username: userEmail, bonus: "none" });
-            bonusText.textContent = "none";
-          }
-          bonusSection.style.display = "block";
-        } catch (e) {
-          console.error("[ERROR] Fehler beim Laden des Profils:", e);
-          output.textContent = "Fehler beim Laden des Profils. Siehe Konsole.";
-        }
-      }
-
-      loadUser();
-
-      applyBonus.addEventListener("click", async () => {
-        const code = bonusInput.value.trim();
-        if (!code) return alert("Bitte Bonuscode eingeben!");
-        console.log("[DEBUG] Eingabe Bonuscode:", code);
-
-        const gültigeCodes = {
-          "KNOEDEL100": "Superbonus",
-          "BROTPREMIUM": "Premiumbonus",
-          "TESTCODE": "Testbonus"
+        const firebaseConfig = {
+            apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
+            authDomain: "knoedelbrot-1d1de.firebaseapp.com",
+            projectId: "knoedelbrot-1d1de",
+            storageBucket: "knoedelbrot-1d1de.firebasestorage.app",
+            messagingSenderId: "906476242509",
+            appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
         };
 
-        if (gültigeCodes[code]) {
-          try {
-            await updateDoc(userRef, { bonus: gültigeCodes[code] });
-            bonusText.textContent = gültigeCodes[code];
-            alert(`Bonuscode erfolgreich aktiviert: ${gültigeCodes[code]}`);
-            console.log("[DEBUG] Bonus erfolgreich in Firestore gespeichert!");
-          } catch (e) {
-            console.error("[ERROR] Konnte Bonus nicht speichern:", e);
-            alert("Fehler beim Speichern des Bonuscodes!");
-          }
-        } else {
-          alert("Ungültiger Bonuscode!");
-          console.warn("[WARN] Ungültiger Code:", code);
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const email = urlParams.get('email');
+            if (!email) {
+                alert("Keine Benutzerinformationen!");
+                return;
+            }
+
+            const userRef = doc(db, "users", email);
+            const docSnap = await getDoc(userRef);
+
+            if (!docSnap.exists()) {
+                alert("Benutzer nicht gefunden!");
+                return;
+            }
+
+            const data = docSnap.data();
+            document.getElementById("email").textContent = email;
+            document.getElementById("bonus").textContent = data.bonus || "kein Bonus";
+        });
+
+        window.logout = () => {
+            document.cookie = "bonus=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            window.location.href = "login.html";
         }
-      });
-    }
-  </script>
+    </script>
+</head>
+<body>
+    <h1>Profil</h1>
+    <p>Email: <span id="email"></span></p>
+    <p>Bonus: <span id="bonus"></span></p>
+    <button onclick="logout()">Logout</button>
 </body>
 </html>
