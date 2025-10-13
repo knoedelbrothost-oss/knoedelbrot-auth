@@ -1,70 +1,149 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <title>Register</title>
-    <script type="module">
-        import { getBonusType } from './bonuscodes.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
-            authDomain: "knoedelbrot-1d1de.firebaseapp.com",
-            projectId: "knoedelbrot-1d1de",
-            storageBucket: "knoedelbrot-1d1de.firebasestorage.app",
-            messagingSenderId: "906476242509",
-            appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
-        };
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        window.registerUser = async function() {
-            const email = document.getElementById("email").value;
-            const pass = document.getElementById("password").value;
-            const code = document.getElementById("bonuscode").value.trim();
-
-            // Bonus prüfen
-            const bonusType = getBonusType(code);
-
-            // User-Dokument in Firestore
-            const userRef = doc(db, "users", email);
-            const docSnap = await getDoc(userRef);
-
-            if (docSnap.exists()) {
-                alert("Benutzer existiert schon!");
-                return;
-            }
-
-            await setDoc(userRef, {
-                password: pass,
-                bonus: bonusType,
-                bonusCode: code
-            });
-
-            // Cookie setzen (bis Ablauf des Bonus)
-            const today = new Date();
-            let expDate = new Date();
-            if (bonusType !== "none") {
-                import { bonusCodes } from './bonuscodes.js';
-                // Suche Ablaufdatum
-                const b = bonusCodes.find(bc => bc.code === code);
-                if (b) expDate = new Date(b.expires);
-            }
-            document.cookie = `bonus=${bonusType}; expires=${expDate.toUTCString()}; path=/`;
-
-            alert("Registrierung erfolgreich!");
-            window.location.href = "login.html";
-        }
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registrierung - Knödelbrot</title>
+<style>
+body {
+    font-family: "DynaPuff", system-ui;
+    background-color: #111;
+    color: whitesmoke;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+.register-box {
+    background-color: black;
+    border-radius: 90px;
+    padding: 40px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(255,255,255,0.2);
+}
+h1 {
+    font-family: "Pacifico", cursive;
+    font-size: 46px;
+    color: whitesmoke;
+    margin-bottom: 20px;
+}
+input[type="text"], input[type="password"] {
+    width: 80%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 90px;
+    border: none;
+    background-color: #222;
+    color: whitesmoke;
+    font-size: 18px;
+    outline: none;
+    text-align: center;
+}
+input[type="text"]:focus, input[type="password"]:focus {
+    background-color: #333;
+}
+button {
+    background-color: black;
+    color: white;
+    border: none;
+    border-radius: 90px;
+    padding: 12px 40px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: 0.4s;
+    margin-top: 15px;
+}
+button:hover {
+    background-color: rgb(125,125,125);
+    color: black;
+}
+#error { color: red; margin-top: 10px; }
+#message { color: #0f0; margin-top: 10px; }
+</style>
 </head>
 <body>
-    <h1>Register</h1>
-    <input type="email" id="email" placeholder="Email"><br>
-    <input type="password" id="password" placeholder="Passwort"><br>
-    <input type="text" id="bonuscode" placeholder="Bonuscode (optional)"><br>
-    <button onclick="registerUser()">Registrieren</button>
+
+<div class="register-box">
+    <h1>Registrierung</h1>
+    <form id="registerForm">
+        <input type="text" id="newUsername" placeholder="Benutzername" required><br>
+        <input type="password" id="newPassword" placeholder="Passwort" required><br>
+        <input type="text" id="bonusCode" placeholder="Bonuscode eingeben"><br>
+        <button type="submit">Registrieren</button>
+    </form>
+    <div id="error"></div>
+    <div id="message"></div>
+    <p>Schon ein Konto? <a href="login.html">Login</a></p>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getBonusType, bonusCodes } from "./bonuscodes.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
+    authDomain: "knoedelbrot-1d1de.firebaseapp.com",
+    projectId: "knoedelbrot-1d1de",
+    storageBucket: "knoedelbrot-1d1de.firebasestorage.app",
+    messagingSenderId: "906476242509",
+    appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+function setCookie(name, value, days=7){
+    const d = new Date();
+    d.setTime(d.getTime() + (days*24*60*60*1000));
+    document.cookie = name+"="+value+"; expires="+d.toUTCString()+"; path=/";
+}
+
+document.getElementById("registerForm").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const username = document.getElementById("newUsername").value.trim();
+    const password = document.getElementById("newPassword").value;
+    const bonusCode = document.getElementById("bonusCode").value.trim();
+    const fakeEmail = username + "@knödelbrot.local";
+
+    let bonus = getBonusType(bonusCode);
+    let bonusExpire = "";
+    if(bonus !== "none"){
+        const b = bonusCodes.find(b=>b.code===bonusCode);
+        bonusExpire = b.expires;
+    }
+
+    try {
+        await createUserWithEmailAndPassword(auth, fakeEmail, password);
+        await setDoc(doc(db, "users", username), { bonus: bonus, bonusExpire: bonusExpire });
+
+        setCookie("login","1",7);
+        setCookie("username",username,7);
+        setCookie("bonus",bonus,7);
+
+        document.getElementById("message").textContent = "✅ Registrierung erfolgreich! Du bist jetzt eingeloggt.";
+        setTimeout(()=>{ window.location.href = "profile.html"; }, 1500);
+    } catch(error){
+        document.getElementById("error").textContent = error.message;
+        console.error(error);
+    }
+});
+
+// Persistent Login
+onAuthStateChanged(auth, async (user)=>{
+    if(user){
+        const username = user.email.split("@")[0];
+        const docSnap = await getDoc(doc(db, "users", username));
+        const bonus = docSnap.exists() ? docSnap.data().bonus : "none";
+        setCookie("login","1",7);
+        setCookie("username",username,7);
+        setCookie("bonus",bonus,7);
+    }
+});
+</script>
+
 </body>
 </html>

@@ -1,57 +1,105 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <title>Profil</title>
-    <script type="module">
-        import { bonusCodes } from './bonuscodes.js';
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profil - Knödelbrot</title>
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #f0f0f0; display: flex; justify-content: center; align-items: center; height: 100vh; margin:0; }
+.container { background-color: #1e1e1e; padding: 30px 40px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); width: 350px; text-align: center; }
+h1 { margin-bottom: 20px; color: #bb86fc; }
+input { display: block; margin: 10px auto; padding: 12px; width: 80%; max-width: 300px; border-radius: 8px; border: 1px solid #333; background-color: #2a2a2a; color: #f0f0f0; text-align: center; font-size: 14px; }
+button { padding: 10px 20px; background-color: #bb86fc; color: #121212; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+button:hover { background-color: #9a63e0; }
+.info { margin: 10px 0; color:#f0f0f0; }
+</style>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getBonusType, bonusCodes } from "./bonuscodes.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
-            authDomain: "knoedelbrot-1d1de.firebaseapp.com",
-            projectId: "knoedelbrot-1d1de",
-            storageBucket: "knoedelbrot-1d1de.firebasestorage.app",
-            messagingSenderId: "906476242509",
-            appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
-        };
+const firebaseConfig = {
+  apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
+  authDomain: "knoedelbrot-1d1de.firebaseapp.com",
+  projectId: "knoedelbrot-1d1de",
+  storageBucket: "knoedelbrot-1d1de.firebasestorage.app",
+  messagingSenderId: "906476242509",
+  appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
+};
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if(parts.length===2) return parts.pop().split(';').shift();
+  return null;
+}
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const email = urlParams.get('email');
-            if (!email) {
-                alert("Keine Benutzerinformationen!");
-                return;
-            }
+function setCookie(name, value, expires=null) {
+  let c = `${name}=${value}; path=/;`;
+  if(expires) c += ` expires=${expires.toUTCString()};`;
+  document.cookie = c;
+}
 
-            const userRef = doc(db, "users", email);
-            const docSnap = await getDoc(userRef);
+let username = "";
 
-            if (!docSnap.exists()) {
-                alert("Benutzer nicht gefunden!");
-                return;
-            }
+async function loadProfile() {
+  username = getCookie("username");
+  if(!username) { alert("Nicht eingeloggt!"); window.location.href="login.html"; return; }
 
-            const data = docSnap.data();
-            document.getElementById("email").textContent = email;
-            document.getElementById("bonus").textContent = data.bonus || "kein Bonus";
-        });
+  const userRef = doc(db, "users", username);
+  const docSnap = await getDoc(userRef);
+  if(!docSnap.exists()) { alert("Benutzer nicht gefunden!"); return; }
 
-        window.logout = () => {
-            document.cookie = "bonus=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            window.location.href = "login.html";
-        }
-    </script>
+  const data = docSnap.data();
+  document.getElementById("emailDisplay").textContent = `Benutzer: ${username}`;
+  document.getElementById("bonusInfo").textContent = data.bonus && data.bonus!=="none" ? `Bonus: ${data.bonus} bis ${data.bonusExpire}` : "Kein Bonus aktiv";
+}
+
+async function updateBonus(e) {
+  e.preventDefault();
+  const codeInput = document.getElementById("bonusInput").value.trim();
+  let bonus = "none";
+  let bonusExpire = "";
+
+  if(codeInput) {
+    bonus = getBonusType(codeInput);
+    if(bonus !== "none") {
+      const b = bonusCodes.find(b => b.code===codeInput);
+      bonusExpire = b.expires;
+      const expDate = new Date(b.expires);
+      setCookie("bonus", bonus, expDate);
+    } else {
+      alert("Ungültiger oder abgelaufener Bonuscode!");
+      bonus="none";
+      bonusExpire="";
+    }
+  }
+
+  const userRef = doc(db, "users", username);
+  await updateDoc(userRef, { bonus: bonus, bonusExpire: bonusExpire });
+
+  document.getElementById("bonusInfo").textContent = bonus!=="none" ? `Bonus: ${bonus} bis ${bonusExpire}` : "Kein Bonus aktiv";
+  alert("Bonus aktualisiert!");
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  loadProfile();
+  document.getElementById("bonusForm").addEventListener("submit", updateBonus);
+});
+</script>
 </head>
 <body>
-    <h1>Profil</h1>
-    <p>Email: <span id="email"></span></p>
-    <p>Bonus: <span id="bonus"></span></p>
-    <button onclick="logout()">Logout</button>
+<div class="container">
+  <h1>Profil</h1>
+  <p class="info" id="emailDisplay">Benutzer: </p>
+  <p class="info" id="bonusInfo">Kein Bonus aktiv</p>
+  <form id="bonusForm">
+    <input type="text" id="bonusInput" placeholder="Bonuscode eingeben">
+    <button type="submit">Bonus aktualisieren</button>
+  </form>
+</div>
 </body>
 </html>
