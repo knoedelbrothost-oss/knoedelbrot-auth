@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=https://knödelbrot.de">
+  <title>Weiterleitung...</title>
+  <script>
+    // Diese Funktion leitet automatisch den aktuellen Pfad an knödelbrot.de weiter
+    (function() {
+      // Aktuellen Pfad und Suchparameter übernehmen
+      const path = window.location.pathname;
+      const query = window.location.search;
+      const hash = window.location.hash;
+
+      // Ziel-URL zusammensetzen
+      const ziel = "https://knödelbrot.de" + path + query + hash;
+
+      // Weiterleitung ausführen
+      window.location.replace(ziel);
+    })();
+  </script>
+</head>
+<body>
+  <p>Du wirst weitergeleitet zu <a id="ziel" href="https://knödelbrot.de">knödelbrot.de</a>...</p>
+</body>
+</html>
