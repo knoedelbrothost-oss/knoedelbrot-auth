@@ -6,78 +6,48 @@
 <title>Registrierung - Knödelbrot</title>
 <style>
 body {
-    font-family: "DynaPuff", system-ui;
-    background-color: #111;
-    color: whitesmoke;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212;
+    color: #f0f0f0;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     margin: 0;
 }
-.register-box {
-    background-color: black;
-    border-radius: 90px;
+.container {
+    background-color: #1e1e1e;
     padding: 40px;
-    width: 380px;
+    border-radius: 15px;
+    width: 350px;
     text-align: center;
-    box-shadow: 0 0 20px rgba(255,255,255,0.2);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.6);
 }
-h1 {
-    font-family: "Pacifico", cursive;
-    font-size: 46px;
-    color: whitesmoke;
-    margin-bottom: 20px;
-}
-input[type="text"], input[type="password"] {
+h1 { color: #bb86fc; margin-bottom: 20px; }
+input {
+    display: block;
+    margin: 10px auto;
+    padding: 12px;
     width: 80%;
-    padding: 10px;
-    margin: 8px 0;
-    border-radius: 90px;
-    border: none;
-    background-color: #222;
-    color: whitesmoke;
-    font-size: 18px;
-    outline: none;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background-color: #2a2a2a;
+    color: #f0f0f0;
     text-align: center;
-}
-input[type="text"]:focus, input[type="password"]:focus {
-    background-color: #333;
 }
 button {
-    background-color: black;
-    color: white;
+    padding: 10px 20px;
+    background-color: #bb86fc;
+    color: #121212;
     border: none;
-    border-radius: 90px;
-    padding: 12px 40px;
-    font-size: 20px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: 0.4s;
-    margin-top: 15px;
+    margin-top: 10px;
 }
-button:hover {
-    background-color: rgb(125,125,125);
-    color: black;
-}
+button:hover { background-color: #9a63e0; }
 #error { color: red; margin-top: 10px; }
 #message { color: #0f0; margin-top: 10px; }
 </style>
-</head>
-<body>
-
-<div class="register-box">
-    <h1>Registrierung</h1>
-    <form id="registerForm">
-        <input type="text" id="newUsername" placeholder="Benutzername" required><br>
-        <input type="password" id="newPassword" placeholder="Passwort" required><br>
-        <input type="text" id="bonusCode" placeholder="Bonuscode eingeben"><br>
-        <button type="submit">Registrieren</button>
-    </form>
-    <div id="error"></div>
-    <div id="message"></div>
-    <p>Schon ein Konto? <a href="login.html">Login</a></p>
-</div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
@@ -85,12 +55,12 @@ import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/fireb
 import { getBonusType, bonusCodes } from "./bonuscodes.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
-    authDomain: "knoedelbrot-1d1de.firebaseapp.com",
-    projectId: "knoedelbrot-1d1de",
-    storageBucket: "knoedelbrot-1d1de.firebasestorage.app",
-    messagingSenderId: "906476242509",
-    appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
+  apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
+  authDomain: "knoedelbrot-1d1de.firebaseapp.com",
+  projectId: "knoedelbrot-1d1de",
+  storageBucket: "knoedelbrot-1d1de.firebasestorage.app",
+  messagingSenderId: "906476242509",
+  appId: "1:906476242509:web:989fbc20dee736f1eb7e04"
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -107,28 +77,32 @@ document.getElementById("registerForm").addEventListener("submit", async (e)=>{
     const username = document.getElementById("newUsername").value.trim();
     const password = document.getElementById("newPassword").value;
     const bonusCode = document.getElementById("bonusCode").value.trim();
-    const fakeEmail = username + "@knödelbrot.local";
+    const fakeEmail = username + "@knodelbrot.local";
 
-    let bonus = getBonusType(bonusCode);
+    let bonus = "none";
     let bonusExpire = "";
-    if(bonus !== "none"){
-        const b = bonusCodes.find(b=>b.code===bonusCode);
-        bonusExpire = b.expires;
+
+    if(bonusCode){
+        bonus = getBonusType(bonusCode);
+        if(bonus !== "none"){
+            const b = bonusCodes.find(b=>b.code===bonusCode);
+            bonusExpire = b.expires;
+        }
     }
 
     try {
         await createUserWithEmailAndPassword(auth, fakeEmail, password);
-        await setDoc(doc(db, "users", username), { bonus: bonus, bonusExpire: bonusExpire });
+        await setDoc(doc(db, "users", username), {bonus: bonus, bonusExpire: bonusExpire});
 
-        setCookie("login","1",7);
-        setCookie("username",username,7);
-        setCookie("bonus",bonus,7);
+        setCookie("login", "1", 7);
+        setCookie("username", username, 7);
+        setCookie("bonus", bonus, 7);
 
         document.getElementById("message").textContent = "✅ Registrierung erfolgreich! Du bist jetzt eingeloggt.";
         setTimeout(()=>{ window.location.href = "profile.html"; }, 1500);
-    } catch(error){
+    } catch(error) {
         document.getElementById("error").textContent = error.message;
-        console.error(error);
+        console.error(error.code, error.message);
     }
 });
 
@@ -138,12 +112,25 @@ onAuthStateChanged(auth, async (user)=>{
         const username = user.email.split("@")[0];
         const docSnap = await getDoc(doc(db, "users", username));
         const bonus = docSnap.exists() ? docSnap.data().bonus : "none";
-        setCookie("login","1",7);
-        setCookie("username",username,7);
-        setCookie("bonus",bonus,7);
+        setCookie("login", "1", 7);
+        setCookie("username", username, 7);
+        setCookie("bonus", bonus, 7);
     }
 });
 </script>
-
+</head>
+<body>
+<div class="container">
+    <h1>Registrierung</h1>
+    <form id="registerForm">
+        <input type="text" id="newUsername" placeholder="Benutzername" required>
+        <input type="password" id="newPassword" placeholder="Passwort" required>
+        <input type="text" id="bonusCode" placeholder="Bonuscode eingeben">
+        <button type="submit">Registrieren</button>
+    </form>
+    <div id="error"></div>
+    <div id="message"></div>
+    <p>Schon ein Konto? <a href="login.html">Login</a></p>
+</div>
 </body>
 </html>
