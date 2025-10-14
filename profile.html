@@ -74,8 +74,8 @@ let username = "";
 
 async function loadProfile(){
     username = getCookie("username");
-    if(!username){ alert("Nicht eingeloggt!"); //window.location.href="login.html"; return; }
-                 }
+    if(!username){ alert("Nicht eingeloggt!"); window.location.href="login.html"; return; }
+                 
 
     const docSnap = await getDoc(doc(db, "users", username));
     const data = docSnap.data();
