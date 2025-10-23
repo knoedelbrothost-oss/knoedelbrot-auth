@@ -78,6 +78,7 @@
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
     import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
+    // 🔧 Firebase-Konfiguration
     const firebaseConfig = {
       apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
       authDomain: "knoedelbrot-1d1de.firebaseapp.com",
@@ -91,15 +92,23 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // 🍪 Cookie-Funktion mit Domain + SameSite-Support
     function setCookie(name, value, days = 7) {
       const d = new Date();
       d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-      document.cookie = name + "=" + value + "; expires=" + d.toUTCString() + "; path=/" + 
-      "; domain=.knoedelbrot.de" +       // ✅ für alle Subdomains
-        "; Secure" +                       // ✅ zwingend für SameSite=None
-        "; SameSite=None";                 // ✅ erlaubt Subdomain-Sharing;
+      document.cookie =
+        name + "=" + value +
+        "; expires=" + d.toUTCString() +
+        "; path=/" +
+        "; domain=.knödelbrot.de" +
+        "; Secure; SameSite=None";
     }
 
+    // 🔙 Redirect-Ziel aus URL (Standard: Startseite)
+    const params = new URLSearchParams(window.location.search);
+    const redirectURL = params.get("redirect") || "https://knoedelbrot.de/";
+
+    // 📋 Login-Formular verarbeiten
     document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const username = document.getElementById("username").value.trim();
@@ -108,7 +117,6 @@
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, fakeEmail, password);
-        // Firebase Auth Login erfolgreich
         const docSnap = await getDoc(doc(db, "users", username));
         const bonus = docSnap.exists() ? docSnap.data().bonus : "none";
 
@@ -116,14 +124,15 @@
         setCookie("username", username, 7);
         setCookie("bonus", bonus, 7);
 
-        window.location.href = "profile.html";
+        // ✅ Zurückleitung zur ursprünglichen Seite
+        window.location.href = redirectURL;
       } catch (error) {
-        alert(error.message);
+        alert("Login fehlgeschlagen: " + error.message);
         console.error(error);
       }
     });
 
-    // Persistent Login
+    // 🔁 Bereits eingeloggt? -> Direkt zurück
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         const username = user.email.split("@")[0];
@@ -133,9 +142,12 @@
         setCookie("login", "1", 7);
         setCookie("username", username, 7);
         setCookie("bonus", bonus, 7);
+
+        window.location.href = redirectURL;
       }
     });
   </script>
+
 </head>
 
 <body>
