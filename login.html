@@ -5,6 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Knödelbrot</title>
+
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="credentialless">
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
+
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -21,9 +25,9 @@
       background-color: #1e1e1e;
       padding: 30px 40px;
       border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
       width: 320px;
       text-align: center;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
     }
 
     h1 {
@@ -42,7 +46,6 @@
       background-color: #2a2a2a;
       color: #f0f0f0;
       text-align: center;
-      font-size: 14px;
     }
 
     button {
@@ -69,11 +72,11 @@
       text-decoration: underline;
     }
   </style>
+
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-    import { getBonusType } from "./bonuscodes.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBmnEMGPec-dzIANP0pvGT3Lbvm51zFjaY",
@@ -88,50 +91,49 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    function setCookie(name, value, expires = null) {
-      let c = `${name}=${value}; path=/;`;
-      if (expires) c += ` expires=${expires.toUTCString()};`;
-      document.cookie = c;
+    function setCookie(name, value, days = 7) {
+      const d = new Date();
+      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+      document.cookie = name + "=" + value + "; expires=" + d.toUTCString() + "; path=/" + 
+      "; domain=.knoedelbrot.de" +       // ✅ für alle Subdomains
+        "; Secure" +                       // ✅ zwingend für SameSite=None
+        "; SameSite=None";                 // ✅ erlaubt Subdomain-Sharing;
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("loginForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const username = document.getElementById("username").value.trim();
-        const password = document.getElementById("password").value;
+    document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const fakeEmail = username + "@knödelbrot.local";
 
-        const email = `${username}@knodelbrot.local`;
-        console.log("Versuche Login mit Email:", email, "Passwort:", password);
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, fakeEmail, password);
+        // Firebase Auth Login erfolgreich
+        const docSnap = await getDoc(doc(db, "users", username));
+        const bonus = docSnap.exists() ? docSnap.data().bonus : "none";
 
+        setCookie("login", "1", 7);
+        setCookie("username", username, 7);
+        setCookie("bonus", bonus, 7);
 
-        try {
-          await signInWithEmailAndPassword(auth, email, password);
+        window.location.href = "profile.html";
+      } catch (error) {
+        alert(error.message);
+        console.error(error);
+      }
+    });
 
-          // Firebase User-Daten laden
-          const userRef = doc(db, "users", username);
-          const docSnap = await getDoc(userRef);
-          let bonusType = "none";
-          let bonusExpire = null;
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.bonus) {
-              bonusType = data.bonus;
-              bonusExpire = new Date(data.bonusExpire);
-            }
-          }
+    // Persistent Login
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const username = user.email.split("@")[0];
+        const docSnap = await getDoc(doc(db, "users", username));
+        const bonus = docSnap.exists() ? docSnap.data().bonus : "none";
 
-          // Cookies setzen
-          setCookie("username", username);
-          setCookie("login", 1);
-          if (bonusType !== "none" && bonusExpire) setCookie("bonus", bonusType, bonusExpire);
-
-          window.location.href = "profile.html";
-
-        } catch (err) {
-          alert("Login fehlgeschlagen: Benutzername oder Passwort falsch.");
-          setCookie("login", 0);
-        }
-      });
+        setCookie("login", "1", 7);
+        setCookie("username", username, 7);
+        setCookie("bonus", bonus, 7);
+      }
     });
   </script>
 </head>
